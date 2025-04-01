@@ -2,10 +2,12 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -35,6 +37,11 @@ func getEnv(key, defaultValue string) string {
 }
 
 func LoadConfig() (*Config, error) {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("⚠️ Warning: No .env file found, using default values")
+	}
+
 	jwtExpHours, err := strconv.Atoi(getEnv("JWT_EXPIRATION", "24"))
 	if err != nil {
 		jwtExpHours = 24
@@ -72,7 +79,7 @@ func LoadConfig() (*Config, error) {
 }
 
 func ConnectMongoDB(cfg *Config) (*mongo.Client, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
 	clientOptions := options.Client().
@@ -85,7 +92,7 @@ func ConnectMongoDB(cfg *Config) (*mongo.Client, error) {
 		return nil, err
 	}
 
-	pingCtx, pingCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer pingCancel()
 
 	err = client.Ping(pingCtx, nil)

@@ -1,8 +1,13 @@
 package config
 
 import (
+	"context"
 	"os"
 	"strconv"
+	"time"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Config struct {
@@ -30,7 +35,7 @@ func getEnv(key, defaultValue string) string {
 }
 
 func LoadConfig() (*Config, error) {
-	jwtExpHours, err := strconv.Atoi((getEnv("JWT_EXPIRATION", "24")))
+	jwtExpHours, err := strconv.Atoi(getEnv("JWT_EXPIRATION", "24"))
 	if err != nil {
 		jwtExpHours = 24
 	}
@@ -64,4 +69,29 @@ func LoadConfig() (*Config, error) {
 		UseEmailAPI:   useEmailAPI,
 		SendGridKey:   sendgridApiKey,
 	}, nil
+}
+
+func ConnectMongoDB(cfg *Config) (*mongo.Client, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	clientOptions := options.Client().
+		ApplyURI(cfg.MongoURI).
+		SetServerSelectionTimeout(10 * time.Second).
+		SetConnectTimeout(10 * time.Second)
+
+	client, err := mongo.Connect(ctx, clientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer pingCancel()
+
+	err = client.Ping(pingCtx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
